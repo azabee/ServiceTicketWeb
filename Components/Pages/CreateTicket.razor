@@ -1,0 +1,102 @@
+@page "/tickets/create"
+
+@using ServiceTicketWeb.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Create Ticket</PageTitle>
+
+@* Bootstrap "container" adds page padding; max-width keeps the form from stretching across wide screens. *@
+<div class="container py-4" style="max-width: 720px;">
+    <div class="mb-4">
+        <h1 class="h2 mb-1">Create New Ticket</h1>
+        <p class="text-secondary mb-0">
+            Submit a new support request.
+        </p>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger shadow-sm" role="alert">@errorMessage</div>
+    }
+
+    @* "card" + "shadow-sm" puts the form in a white box, matching the Tickets list page. *@
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
+            <EditForm Model="@newTicket" OnValidSubmit="CreateTicketFn">
+
+                <DataAnnotationsValidator />
+                @* Used to attach validation support to forms based on validation attributes *@
+
+                <ValidationSummary class="alert alert-danger" />
+                @* Used to summarize the error messages from all validators on a Web page in a single location. *@
+                @* class="alert alert-danger" styles the summary as a red Bootstrap alert box. *@
+
+                @* Each field is its own "mb-3" block with the label on top and a full-width box below, so the boxes line up.
+                   "form-label", "form-control", and "form-select" are Bootstrap form classes.
+                   The label's "for" matches the input's "id" so clicking the label focuses the box. *@
+                <div class="mb-3">
+                    <label for="title" class="form-label fw-semibold">Title</label>
+                    <InputText id="title" class="form-control" @bind-Value="newTicket.Title" />
+                    <ValidationMessage For="@(() => newTicket.Title)" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label fw-semibold">Description</label>
+                    <InputTextArea id="description" class="form-control" rows="4" @bind-Value="newTicket.Description" />
+                    <ValidationMessage For="@(() => newTicket.Description)" />
+                </div>
+
+                <div class="mb-4">
+                    <label for="status" class="form-label fw-semibold">Status</label>
+                    <InputSelect id="status" class="form-select" @bind-Value="newTicket.Status">
+                        @foreach (var status in allowedStatuses)
+                        {
+                            <option value="@status">@status</option>
+                        }
+                    </InputSelect>
+                </div>
+
+                @* "d-flex gap-2" places the buttons side by side with a small space between them. *@
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">Create Ticket</button>
+                    <a href="/tickets" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+
+            </EditForm>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Default Status to "New" to match the first dropdown option.
+    // Without this, Status starts as "" and the API rejects the ticket unless the user changes the dropdown.
+    Ticket newTicket = new Ticket { Status = "New" };
+    string[] allowedStatuses = { "New", "In Progress", "Closed" };
+
+    private string? errorMessage;
+
+    private async Task CreateTicketFn()
+    {
+        errorMessage = null; // Clear previous error message
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync("/tickets", newTicket);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Navigation.NavigateTo("/tickets");
+            }
+            else
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                errorMessage = body.Trim('"'); // Remove quotes from the error message
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"Could not reach the API: {ex.Message}";
+        }
+    }
+}

@@ -1,0 +1,102 @@
+﻿@page "/tickets/update/{id:int}"
+@using ServiceTicketWeb.Models
+@inject HttpClient Http
+@inject NavigationManager Navigation
+
+<PageTitle>Update Ticket</PageTitle>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    string[] allowedStatuses = { "New", "In Progress", "Closed" };
+    Ticket? ticket;
+
+    //Holds a message from the API to display to the user
+    private string? errorMessage;
+    
+    protected override async Task OnInitializedAsync()
+    {
+        ticket = await Http.GetFromJsonAsync<Ticket>($"/tickets/{Id}"); 
+    }
+
+    private async Task UpdateTicketStatus()
+    {
+        if (ticket == null)
+            return;
+
+        errorMessage = null; // Clear previous error message
+
+        var response = await Http.PutAsJsonAsync($"/tickets/{ticket.TicketId}",
+            ticket
+        );
+
+        if (response.IsSuccessStatusCode)
+        {
+            Navigation.NavigateTo($"/ticket/{ticket.TicketId}");
+        }
+
+        else
+        {        
+			var body = await response.Content.ReadAsStringAsync();
+			errorMessage = body.Trim('"'); // Remove quotes from the error message
+        }
+    }
+}
+
+@if (ticket != null)
+{
+    @* Same Bootstrap layout as CreateTicket.razor (container, card, and form classes) so both forms look the same. *@
+    <div class="container py-4" style="max-width: 720px;">
+        <div class="mb-4">
+            <h1 class="h2 mb-1">Update Ticket Status</h1>
+            <p class="text-secondary mb-0">Ticket #@ticket.TicketId</p>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger shadow-sm" role="alert">@errorMessage</div>
+        }
+
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <EditForm Model="@ticket" OnValidSubmit="UpdateTicketStatus">
+
+                    <DataAnnotationsValidator />
+                    @* Used to attach validation support to forms based on validation attributes *@
+
+                    <ValidationSummary class="alert alert-danger" />
+                    @* Used to summarize the error messages from all validators on a Web page in a single location. *@
+
+                    <div class="mb-3">
+                        <label for="title" class="form-label fw-semibold">Title</label>
+                        <InputText id="title" class="form-control" @bind-Value="ticket.Title" />
+                        <ValidationMessage For="@(() => ticket.Title)" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label fw-semibold">Description</label>
+                        <InputTextArea id="description" class="form-control" rows="4" @bind-Value="ticket.Description" />
+                        <ValidationMessage For="@(() => ticket.Description)" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="status" class="form-label fw-semibold">Status</label>
+                        <InputSelect id="status" class="form-select" @bind-Value="ticket.Status">
+                            @foreach (var status in allowedStatuses)
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Update Ticket</button>
+                        @* Cancel returns to this ticket's details page without saving. *@
+                        <a href="/ticket/@ticket.TicketId" class="btn btn-outline-secondary">Cancel</a>
+                    </div>
+
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}

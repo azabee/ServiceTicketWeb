@@ -1,0 +1,55 @@
+@page "/ticket/{id:int}"
+@inject HttpClient Http
+@using ServiceTicketWeb.Models
+
+<PageTitle>Ticket Details</PageTitle>
+
+<h3>Ticket Details</h3>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    Ticket? ticket;
+
+    //A6-4 Holds a message from the API to display when the ticket cannot be found.
+    string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var response = await Http.GetAsync($"/tickets/{Id}");
+
+        if (response.IsSuccessStatusCode)
+        {
+            ticket = await response.Content.ReadFromJsonAsync<Ticket>();
+        }
+        else
+        {
+            errorMessage = await response.Content.ReadAsStringAsync();
+        }
+    }
+
+}
+
+@if (ticket != null)
+{
+    <h2>@ticket.Title</h2>
+
+    <p><strong>Ticket ID:</strong> @ticket.TicketId</p>
+    <p><strong>Status:</strong> @ticket.Status</p>
+    <p><strong>Description:</strong> @ticket.Description</p>
+    <p>
+        <a href="/tickets/update/@ticket.TicketId">Update Ticket Status</a>
+    </p>
+}
+else
+{
+    <p>Ticket not found.</p>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <p class="text-secondary">@errorMessage</p>
+    }
+}
+
+
